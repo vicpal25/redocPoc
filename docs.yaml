@@ -1,0 +1,194 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  description: Serverless application for handling of email offers. Uses Lambda, API Gateway and DynamoDB. Development and deploying use AWS SAM.
+  title: M1
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:3000/
+    description: Development
+  - url: https://api-halogen.staging.motortrendondemand.com/m1
+    description: Staging
+  - url: https://api-halogen.preprod.motortrendondemand.com/m1
+    description: Pre-Production
+  - url: https://api-halogen.motortrendondemand.com/m1
+    description: Production      
+paths:
+  /hash:
+    get:
+      summary: Get data by id
+      operationId: GetCustomerByID
+      tags:
+        - hash
+      parameters:
+        - name: id
+          in: query
+          description: Hashed customer ID
+          required: true
+          schema:
+            type: string
+      security:
+        - ApiKeyAuth: []        
+      responses:
+        '200':
+          description: Cutomer object
+          content:
+            application/json:    
+              schema:
+                $ref: "#/components/schemas/CustomerGetHashResponse"
+        '403':
+          description: API key is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthError"
+                
+        '404':
+          description: Hash Not found
+          content:
+            application/json:    
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Start to save customer info w/ ability to send in a batch CustomerHashArray
+      operationId: CreateCustomer
+      tags:
+        - hash
+      parameters:
+        - in: query
+          name: type
+          required: false
+          schema:
+            type: string
+            enum: [batch]
+            example: batch     # Example of a parameter value        
+      security:
+        - ApiKeyAuth: []        
+      requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  oneOf:
+                    - $ref: '#/components/schemas/CustomerHashRequest'
+                    - $ref: '#/components/schemas/CustomerHashArray'
+                example:
+                    summary: Making a Single Request
+                    value:
+                      email: m1_addess@motortrend.com
+                      firstname: Motor_Trend_user
+                      lastname: Discovery_last
+                      id: 306ce1eb-cb0d-42df-aa98-aade61dc8c71
+      responses:
+        '403':
+          description: API key is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthError"
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerGetHashResponse"
+
+    patch:
+      summary: Update customer info
+      operationId: UpdateCustomer
+      tags:
+        - hash
+      parameters:
+        - name: id
+          in: query
+          description: Hashed customer ID
+          required: true
+          schema:
+            type: integer
+            format: string
+      security:
+        - ApiKeyAuth: []        
+      responses:
+        '200':
+          description: Status of request update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateHashResponse"
+
+        '403':
+          description: API key is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthError"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:        # arbitrary name for the security scheme
+      type: apiKey
+      in: header       # can be "header", "query" or "cookie"
+      name: x-api-key  # name of the header, query parameter or cookie
+  schemas:
+    CustomerHashRequest:
+      required:
+        - email
+        - firstName
+        - lastName
+        - id
+      properties:
+        email:
+          type: string
+        firstname:
+          type: string
+        lastname:
+          type: string
+        id:
+          type: string
+    CustomerGetHashResponse:
+      required:
+        - email
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+        firstname:
+          type: string
+        lastname:
+          type: string
+        id:
+          type: string      
+    UpdateHashResponse:
+      required:
+        - status
+      properties:
+        status:
+          type: string
+    CustomerHashArray:
+      type: array
+      items:
+        $ref: "#/components/schemas/CustomerGetHashResponse"
+    AuthError:
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean        
+        message:
+          type: string 
+        error:
+          type: string
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
